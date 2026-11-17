@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><title>Imperios en Guerra — Prototipo v0.2</title>
+<style>
+body{margin:0;background:#0b1118;color:#e8e4d8;font:13px system-ui,sans-serif;overflow:hidden;user-select:none}
+canvas{display:block}
+button{background:#2b3645;color:#e8e4d8;border:1px solid #5b6b80;padding:4px 9px;cursor:pointer;border-radius:2px;font:inherit}
+button:hover{background:#3d4e63}button:disabled{opacity:.4;cursor:default}button.on{background:#8a6d2b;border-color:#d8b45a}
+#top{position:fixed;inset:0 0 auto;height:34px;background:linear-gradient(#303b4a,#1a222c);border-bottom:2px solid #55422b;display:flex;align-items:center;gap:14px;padding:0 10px;z-index:5;white-space:nowrap}
+#side{position:fixed;right:0;top:34px;width:260px;bottom:0;background:#1a222cee;border-left:2px solid #55422b;padding:8px;overflow:auto;z-index:4}
+#log{position:fixed;left:8px;bottom:8px;z-index:3;font-size:12px;text-shadow:0 0 3px #000,0 0 3px #000;max-width:520px;pointer-events:none}
+#win{position:fixed;left:calc(50% - 130px);top:calc(50% + 17px);transform:translate(-50%,-50%);width:min(960px,calc(96vw - 270px));max-height:80vh;overflow:auto;background:#e8dcc0;color:#2a2217;border:3px solid #55422b;padding:12px;z-index:6;display:none}
+#win button{background:#c9b98f;color:#2a2217;border-color:#7a6a45}#win button.on{background:#8a6d2b;color:#fff}#win button:disabled{opacity:.45}
+#win .x{float:right}
+#menu{position:fixed;inset:0;background:radial-gradient(#25415a,#0b1118);z-index:9;display:flex;align-items:center;justify-content:center}
+.box{background:#141c26;border:2px solid #55422b;padding:24px 32px;max-width:640px;text-align:center}
+.box h1{color:#d8b45a;letter-spacing:4px;margin:0 0 6px}.box button{display:block;width:100%;margin:6px 0;padding:10px;font-size:15px}
+.box .g{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.dv{background:#222d3a;margin:4px 0;padding:4px 6px;font-size:12px}
+.bar{display:block;height:5px;background:#111;margin-top:3px}.bar i{display:block;height:100%;background:#5aa65a}.bar.o i{background:#d8b45a}
+.sl{width:100%;height:46px;margin:0}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;max-width:420px}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+table.st{width:100%;background:#d6c79c;border:1px solid #7a6a45;border-collapse:collapse}table.st td{padding:2px 6px;border-bottom:1px solid #b8a878}table.st td+td{text-align:right;font-weight:bold}
+.tg{display:grid;grid-template-columns:110px repeat(3,1fr);gap:6px;align-items:stretch}
+.tn{padding:6px;border:1px solid #7a6a45;font-size:12px;background:#d6c79c;cursor:pointer;text-align:left}
+.tn.d{background:#7fae6a}.tn.r{background:#e6c35c}.tn.l{opacity:.45;cursor:default}
+table.w{width:100%;border-collapse:collapse}table.w td,table.w th{padding:4px;border-bottom:1px solid #b8a878;text-align:left}
+#m{position:fixed;inset:0;width:100%;height:100%;background:#0e2233}
+.pv{stroke:rgba(0,0,0,.3);stroke-width:calc(.5px*var(--is,1));cursor:pointer}.pv:hover{stroke:#fff;stroke-width:calc(1.6px*var(--is,1))}
+.ol{fill:none;stroke:#05080c;stroke-width:calc(.9px*var(--is,1));pointer-events:none}
+.u,.dot{transform-box:fill-box;transform-origin:center;transform:scale(var(--is,1))}
+.dot{stroke:#000;stroke-width:.6;cursor:pointer}
+#units,#lab,#arr,#ols{pointer-events:none}
+.ut{font:bold 9px system-ui;fill:#fff;text-anchor:middle;dominant-baseline:middle}
+#lab text{text-anchor:middle;dominant-baseline:middle;font-family:Georgia,serif;font-weight:bold;fill:rgba(255,255,255,.9);stroke:rgba(0,0,0,.6);stroke-width:calc(2px*var(--is,1));paint-order:stroke}
+.ar{fill:none;stroke:#ffd34d;stroke-width:calc(2px*var(--is,1));stroke-dasharray:6 4}
+#selp{fill:rgba(255,255,255,.3);stroke:#fff;stroke-width:calc(2px*var(--is,1));pointer-events:none}
+.box input{width:100%;padding:8px;margin:6px 0;background:#0e151d;color:#e8e4d8;border:1px solid #5b6b80}
+</style></head><body>
+<div id="top"></div><svg id="m" xmlns="http://www.w3.org/2000/svg"></svg><div id="side"></div><div id="log"></div><div id="win"></div><div id="menu"></div>
+<script>
+/* IMPERIOS EN GUERRA — prototipo v0.1 (un solo archivo). Abrir en el navegador o con Live Server. */
+const $=q=>document.querySelector(q),R=Math.random,VW=1600,h2=c=>[1,3,5].map(i=>parseInt(c.substr(i,2),16));
+
+let G,me,sel=-1,sp=0,tm,tab='',ev=[],P=[],ti=0;
+const SPD=[0,900,450,200,80,30];
+/* ---------- DATOS ---------- */
+const S=s=>s.split(' ');
+const ERAS={
+2026:{n:'2026 · Era moderna',t:2,P:[]},
+1936:{n:'1936 · Entreguerras',t:1,P:[
+['uk','Imperio Británico','#c0415a',S('GBR IND PAK BGD LKA MMR MYS SGP SDN SDS KEN UGA TZA ZMB ZWE MWI NGA GHA SLE GMB SOL BWA LSO SWZ JOR PSX CYP MLT FLK BLZ GUY JAM TTO BHS BRB HKG BRN FJI')],
+['fra','Imperio Francés','#3b6cc4',S('FRA DZA TUN MAR SEN MLI MRT NER TCD CIV BFA GIN BEN TGO CAF GAB COG CMR MDG DJI SYR LBN VNM LAO KHM NCL PYF COM')],
+['rus','URSS','#b03030',S('RUS UKR BLR KAZ UZB TKM TJK KGZ GEO ARM AZE')],
+['jpn','Imperio del Japón','#d9d3c0',S('JPN KOR PRK TWN')],
+['ita','Italia fascista','#3fa05a',S('ITA LBY ETH ERI SOM')],
+['ger','Tercer Reich','#555a60',S('DEU')],
+['yug','Yugoslavia','#9a6fc0',S('SRB HRV SVN BIH MNE MKD KOS')],
+['cze','Checoslovaquia','#6fa0c0',S('CZE SVK')],
+['ned','Países Bajos','#e08a3a',S('NLD IDN SUR')],
+['prt','Portugal','#2f8f6f',S('PRT AGO MOZ GNB CPV STP TLS')],
+['bel','Bélgica','#c9b23a',S('BEL COD RWA BDI')],
+['esp','República Española','#d9a521',S('ESP GNQ SAH')],
+['usa','Estados Unidos','#4a7ac0',S('USA PRI GUM')]]},
+1870:{n:'1870 · Era victoriana',t:0,P:[
+['uk','Imperio Británico','#c0415a',S('GBR IRL CAN AUS NZL IND PAK BGD LKA MMR SGP ZAF GHA SLE GMB JAM BLZ GUY FLK HKG MLT CYP BHS BRB TTO FJI')],
+['fra','Segundo Imperio Francés','#3b6cc4',S('FRA DZA SEN VNM LAO KHM NCL PYF')],
+['ger','Prusia / Imperio Alemán','#555a60',S('DEU')],
+['aus','Austria-Hungría','#c9c9a0',S('AUT HUN CZE SVK SVN HRV BIH')],
+['rus','Imperio Ruso','#6b8f4e',S('RUS UKR BLR POL LTU LVA EST FIN MDA GEO ARM AZE KAZ UZB TKM TJK KGZ')],
+['tur','Imperio Otomano','#b0623a',S('TUR SYR LBN ISR PSX JOR IRQ EGY LBY TUN ALB MKD KOS SAU YEM')],
+['chn','Imperio Qing','#d8b45a',S('CHN MNG TWN')],
+['esp','Imperio Español','#d9a521',S('ESP CUB PRI PHL')],
+['ned','Países Bajos','#e08a3a',S('NLD IDN SUR')],
+['prt','Portugal','#2f8f6f',S('PRT AGO MOZ GNB CPV STP TLS')],
+['swe','Suecia-Noruega','#4aa3c7',S('SWE NOR')],
+['dnk','Dinamarca','#c25b5b',S('DNK ISL GRL FRO')],
+['ita','Reino de Italia','#3fa05a',S('ITA')],
+['jpn','Japón','#d9d3c0',S('JPN')],
+['usa','Estados Unidos','#4a7ac0',S('USA')]]}};
+
+const UT={inf:{n:'Infantería',a:6,d:12,h:20,o:10,m:1000,c:4,s:4},cav:{n:'Caballería',a:8,d:6,h:12,o:8,m:600,c:5,s:8},art:{n:'Artillería',a:14,d:4,h:10,o:2,m:300,c:8,s:3},mec:{n:'Mecanizada',a:9,d:14,h:22,o:12,m:800,c:10,s:8},tank:{n:'Tanque',a:20,d:14,h:25,o:6,m:400,c:16,s:7},spg:{n:'Autopropulsada',a:28,d:8,h:15,o:4,m:300,c:20,s:6}};
+const SP={eng:{n:'Ingenieros',d:.1,m:100,c:3},med:{n:'Médicos',o:.1,m:100,c:3},rec:{n:'Reconocimiento',s:.15,a:.03,m:100,c:3}};
+const L={atk:'ataque',def:'defensa',hp:'vida',org:'organización',spd:'velocidad',mon:'dinero',man:'mano de obra',rp:'investigación',pp:'poder político'};
+const TECH=[
+['i1','Fusiles de cerrojo','Infantería',0,[],{def:.1},40],['i2','Ametralladoras','Infantería',1,['i1'],{atk:.1,def:.1},70],['i3','Infantería moderna','Infantería',2,['i2'],{atk:.15,hp:.1},110],
+['d1','Doctrina de masas','Doctrina',0,[],{man:.1},40],['d2','Guerra de maniobra','Doctrina',1,['d1'],{org:.15},70],['d3','Mando táctico','Doctrina',2,['d2'],{org:.15,atk:.05},110],
+['a1','Artillería de campaña','Artillería',0,[],{},50,'art'],['a2','Artillería pesada','Artillería',1,['a1'],{atk:.1},80],['a3','Autopropulsada','Artillería',2,['a2'],{atk:.05},120,'spg'],
+['t1','Motorización','Blindados',1,[],{spd:.2},70,'mec'],['t2','Tanques medios','Blindados',1,['t1'],{},90,'tank'],['t3','Blindados modernos','Blindados',2,['t2'],{atk:.15,hp:.1},130],
+['n1','Ferrocarril','Industria',0,[],{mon:.1},40],['n2','Producción en masa','Industria',1,['n1'],{mon:.15},70],['n3','Automatización','Industria',2,['n2'],{mon:.2,rp:.1},110]];
+const BR=['Infantería','Doctrina','Artillería','Blindados','Industria','★ Especial'];
+const U={ger:[['Blitzkrieg',{org:.2,spd:.2}],['Panzerwaffe',{atk:.15}],['Estado Mayor prusiano',{atk:.1,org:.1}]],fra:[['Fortificaciones',{def:.2}],['Ejército colonial',{man:.2}],['Artillería de precisión',{atk:.15}]],uk:[['Marina Real',{mon:.15}],['Red imperial',{pp:.3}],['Inteligencia',{rp:.2}]],esp:[['Guerrilla',{def:.2,org:.1}],['Tercios veteranos',{atk:.1}],['Reservas',{man:.2}]],ita:[['Bersaglieri',{spd:.2}],['Alpini',{def:.15}],['Industria del norte',{mon:.15}]],pol:[['Caballería de élite',{spd:.15,atk:.1}],['Defensa elástica',{def:.15}],['Resistencia',{org:.2}]],rus:[['Masas de reclutas',{man:.3}],['General Invierno',{def:.2}],['Artillería soviética',{atk:.15,hp:.1}]],tur:[['Jenízaros reformados',{org:.15}],['Control de estrechos',{mon:.15}],['Ejército de montaña',{def:.15}]],swe:[['Neutralidad armada',{def:.15}],['Acero sueco',{mon:.15}],['Ingeniería',{rp:.2}]],ukr:[['Defensa territorial',{def:.2}],['Drones',{atk:.15}],['Movilización',{man:.2}]],cze:[['Skoda Works',{mon:.2}],['Fortificaciones Sudetes',{def:.2}],['Tanques LT',{atk:.1,hp:.1}]],aus:[['Ejército imperial',{man:.2}],['Ferrocarril imperial',{spd:.15}],['Diplomacia de Metternich',{pp:.3}]]};
+const rep=(a,n)=>Array(n).fill(a);
+function defTpls(t){return[[{name:'Infantería',sl:[...rep('inf',7),'cav','cav'],sp:['eng',null]},{name:'Caballería',sl:[...rep('cav',6),...rep('inf',3)],sp:['rec',null]}],
+[{name:'Infantería',sl:[...rep('inf',7),'art','art'],sp:['eng',null]},{name:'Mixta',sl:[...rep('inf',5),...rep('art',4)],sp:['eng','med']}],
+[{name:'Infantería',sl:[...rep('inf',5),'art','art','mec','mec'],sp:['eng','med']},{name:'Blindada',sl:[...rep('tank',5),...rep('mec',4)],sp:['rec','eng']}]][t]}
+/* ---------- MAPA MUNDIAL VECTORIAL (SVG · Natural Earth) ---------- */
+U.deu=U.ger;U.gbr=U.uk;U.aut=U.aus;
+U.usa=[['Arsenal de la democracia',{mon:.2}],['Poder terrestre',{atk:.15}],['Logística global',{spd:.15,rp:.1}]];
+U.chn=[['Guerra popular',{man:.3}],['Defensa en profundidad',{def:.15}],['Modernización militar',{atk:.1,org:.1}]];
+U.jpn=[['Espíritu Bushido',{org:.25}],['Guerra anfibia',{atk:.1,spd:.1}],['Ingeniería industrial',{mon:.15}]];
+const POOL=[['Guerrilla',{def:.2,org:.1}],['Reservas',{man:.2}],['Industria pesada',{mon:.15}],['Servicios de inteligencia',{rp:.2}],['Doctrina de montaña',{def:.15}],['Movilización total',{man:.25}],['Escuela de oficiales',{org:.2}],['Diplomacia activa',{pp:.3}],['Artillería nacional',{atk:.15}],['Logística',{spd:.15}],['Blindados nacionales',{atk:.1,hp:.1}],['Fortificaciones',{def:.2}]];
+const pool=id=>{let h=7;for(const ch of id)h=(h*31+ch.charCodeAt(0))|0;h=Math.abs(h)%12;return[POOL[h],POOL[(h+4)%12],POOL[(h+8)%12]]};
+let PE=[],K=1,TX=0,TY=0,VH=0,FE=[];
+const GURL=['https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_countries.geojson','https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_50m_admin_0_countries.geojson'];
+const loadJS=u=>new Promise(r=>{const s=document.createElement('script');s.src=u;s.onload=()=>r(1);s.onerror=()=>r(0);document.head.appendChild(s)});
+async function loadWorld(){
+$('#menu').innerHTML='<div class="box"><h1>IMPERIOS EN GUERRA</h1><p id="ld">Cargando mapa mundial (Natural Earth)…</p></div>';let js;
+if(typeof d3=='undefined'){await loadJS('https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js')||await loadJS('https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js')}
+for(const u of GURL){try{js=await(await fetch(u)).json();break}catch(e){}}
+if(typeof d3=='undefined'||!js){$('#ld').innerHTML='No se pudo cargar el mapa. Necesita internet (librería d3 + datos Natural Earth). Revisa tu conexión y recarga.';return}
+$('#ld').textContent='Construyendo provincias…';await new Promise(r=>setTimeout(r,40));
+try{buildWorld(js)}catch(e){$('#ld').textContent='Error: '+e.message;console.error(e);return}
+menu()}
+function ringD(r){let s='',px=0;r.forEach((p,i)=>{s+=(i&&Math.abs(p[0]-px)<VW/2?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1);px=p[0]});return s+'Z'}
+const inPart=(t,x,y)=>d3.polygonContains(t.o,[x,y])&&!t.h.some(h=>d3.polygonContains(h,[x,y]));
+function samp(t,have){let best=null,bd=-1e9,ok=0;const[x0,y0,x1,y1]=t.bb;for(let n=0;n<80&&ok<14;n++){const x=x0+R()*(x1-x0),y=y0+R()*(y1-y0);if(!inPart(t,x,y))continue;ok++;const d=have.length?Math.min(...have.map(s=>(s[0]-x)**2+(s[1]-y)**2)):-((x-t.c[0])**2+(y-t.c[1])**2);if(d>bd){bd=d;best=[x,y]}}return best||t.c}
+const inC=(ci,x,y)=>FE[ci].parts.some(t=>x>=t.bb[0]&&x<=t.bb[2]&&y>=t.bb[1]&&y<=t.bb[3]&&inPart(t,x,y));
+function buildWorld(js){
+const pr=d3.geoNaturalEarth1();pr.fitWidth(VW,{type:'Sphere'});VH=Math.ceil(d3.geoPath(pr).bounds({type:'Sphere'})[1][1]);
+let defs='',gs='',ol='',dots='';P=[];FE=[];
+js.features.filter(f=>f.properties.ADM0_A3!='ATA'&&f.geometry).forEach(f=>{
+const p=f.properties,g=f.geometry,polys=g.type=='Polygon'?[g.coordinates]:g.coordinates;
+const parts=polys.map(poly=>{const rg=poly.map(r=>r.map(c=>pr(c)));const o=rg[0],xs=o.map(q=>q[0]),ys=o.map(q=>q[1]);let c=d3.polygonCentroid(o);if(!(c[0]==c[0]))c=o[0];return{o,h:rg.slice(1),a:Math.abs(d3.polygonArea(o)),bb:[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)],c}}).filter(t=>t.o.length>2);
+if(!parts.length)return;const i=FE.length;
+const big=parts.reduce((a,b)=>b.a>a.a?b:a),tot=parts.reduce((s,t)=>s+t.a,0),seeds=[];
+parts.forEach(t=>{const n=t.a>1.5?Math.max(1,Math.round(t.a/300)):0,have=[];for(let k=0;k<n;k++){const s=samp(t,have);have.push(s);seeds.push(s)}});
+if(!seeds.length)seeds.push(big.c);
+const bb=[Math.min(...parts.map(t=>t.bb[0]))-1,Math.min(...parts.map(t=>t.bb[1]))-1,Math.max(...parts.map(t=>t.bb[2]))+1,Math.max(...parts.map(t=>t.bb[3]))+1];
+const cl=seeds.length==1?[`M${bb[0]} ${bb[1]}H${bb[2]}V${bb[3]}H${bb[0]}Z`]:(v=>seeds.map((_,k)=>v.renderCell(k)||''))(d3.Delaunay.from(seeds).voronoi(bb));
+const d=parts.map(t=>[t.o,...t.h].map(ringD).join('')).join(''),b0=P.length;
+defs+=`<path id="o${i}" d="${d}"/><clipPath id="k${i}"><use href="#o${i}" clip-rule="evenodd"/></clipPath>`;
+seeds.forEach((s,k)=>P.push({c:i,x:s[0],y:s[1],d:cl[k],nb:[],own:0}));
+gs+=`<g clip-path="url(#k${i})"><use href="#o${i}" fill="#4a5748" fill-rule="evenodd"/>`+seeds.map((s,k)=>`<path class="pv" fill="#566455" data-i="${b0+k}" d="${cl[k]}"/>`).join('')+'</g>';
+ol+=`<use href="#o${i}" class="ol"/>`;
+if(tot<14)seeds.forEach((s,k)=>dots+=`<circle class="dot" data-i="${b0+k}" cx="${s[0]}" cy="${s[1]}" r="3.2" fill="#888"/>`);
+FE.push({es:p.NAME_ES||p.NAME,a3:p.ADM0_A3,pop:p.POP_EST||0,gdp:p.GDP_MD??p.GDP_MD_EST??0,parts,cx:big.c[0],cy:big.c[1]})});
+const D=d3.Delaunay.from(P.map(p=>[p.x,p.y])),link=(a,b)=>{P[a].nb.push(b);P[b].nb.push(a)};
+P.forEach((A,i)=>{for(const j of D.neighbors(i)){if(j<=i)continue;const B=P[j],d=Math.hypot(A.x-B.x,A.y-B.y);if(d>95)continue;let ok=0;for(const t of[.35,.5,.65]){const x=A.x+(B.x-A.x)*t,y=A.y+(B.y-A.y)*t;if(inC(A.c,x,y)||inC(B.c,x,y)){ok=1;break}}if(ok||d<(A.c==B.c?55:36))link(i,j)}});
+$('#m').innerHTML=`<defs>${defs}</defs><g id="vp"><g id="land">${gs}</g><g id="ols">${ol}</g><path id="selp"/><g id="dots">${dots}</g><g id="arr"></g><g id="lab"></g><g id="units"></g></g>`;
+PE=[];document.querySelectorAll('.pv').forEach(e=>{PE[+e.dataset.i]=e;e.setAttribute('fill-opacity',.82+(e.dataset.i%5)*.045)});
+document.querySelectorAll('.dot').forEach(e=>P[+e.dataset.i].dt=e);fit()}
+
+/* ---------- LÓGICA ---------- */
+function recalc(c){c.mod={atk:0,def:0,hp:0,org:0,spd:0,mon:0,man:0,rp:0,pp:0};c.un=new Set(['inf','cav']);c.tl.forEach(t=>{if(c.res.has(t[0])){for(const k in t[5])c.mod[k]+=t[5][k];if(t[7])c.un.add(t[7])}})}
+function stats(c,t){let a=0,d=0,h=0,o=0,m=0,mo=0,s=99,n=0;
+t.sl.forEach(x=>{if(x){const u=UT[x];a+=u.a;d+=u.d;h+=u.h;o+=u.o;m+=u.m;mo+=u.c;s=Math.min(s,u.s);n++}});
+let sa=1,sd=1,so=1,ss=1;t.sp.forEach(x=>{if(x){const u=SP[x];sa+=u.a||0;sd+=u.d||0;so+=u.o||0;ss+=u.s||0;m+=u.m;mo+=u.c}});
+const M=c.mod;return{atk:a*sa*(1+M.atk),def:d*sd*(1+M.def),hp:h*(1+M.hp),org:o*so*(1+M.org),spd:n?s*ss*(1+M.spd):0,man:m,mon:mo,n}}
+const ok=(c,t)=>t.sl.some(x=>x)&&t.sl.every(x=>!x||c.un.has(x));
+const dd=d=>Math.max(1,Math.round(14/Math.max(1,d.st.spd)));
+const avail=c=>c.tl.filter(t=>!c.res.has(t[0])&&t[4].every(r=>c.res.has(r)));
+function polities(y){const E=ERAS[y],used=new Set,Q=[];
+E.P.forEach(([id,name,col,mem])=>{const m=mem.map(a=>FE.findIndex(f=>f.a3==a)).filter(i=>i>=0);m.forEach(i=>used.add(i));if(m.length)Q.push({id,name,col,m})});
+FE.forEach((f,i)=>{if(!used.has(i)){let h=0;for(const ch of f.a3)h=(h*31+ch.charCodeAt(0))%997;Q.push({id:f.a3.toLowerCase(),name:f.es,col:`hsl(${h*137%360},${42+h%24}%,${38+h%20}%)`,m:[i]})}});
+Q.forEach(c=>{c.pop=c.m.reduce((s,i)=>s+FE[i].pop,0);const g=c.m.reduce((s,i)=>s+FE[i].gdp,0);c.eff=y==2026?g:.5*g+.5*c.pop/1e6*3000});
+Q.sort((a,b)=>b.eff-a.eff);Q.forEach((c,i)=>c.ix=i);return Q}
+function start(y,pi){const E=ERAS[y];G={y,e:E,day:0,date:new Date(y,0,1),n:0,D:[],cs:polities(y),w:{}};const own=[];
+G.cs.forEach(c=>{c.m.forEach(i=>own[i]=c.ix);Object.assign(c,{pp:50,res:new Set,war:new Set,cur:null,prog:0,q:[],alive:1,pc:0,cc:c.m[0]});
+c.inc=.3+Math.sqrt(c.eff)/100;c.mg=20+c.pop/40000;c.mon=c.inc*40;c.man=Math.max(1500,c.pop*.004);
+c.tl=[...TECH,...(U[c.id]||pool(c.id)).map((u,k)=>[c.id+k,u[0],'★ Especial',k,k?[c.id+(k-1)]:[],u[1],70+k*50])];
+TECH.forEach(t=>{if(t[3]<E.t)c.res.add(t[0])});c.tpls=JSON.parse(JSON.stringify(defTpls(E.t)));recalc(c)});
+P.forEach(p=>p.own=own[p.c]);
+G.cs.forEach(c=>{const f=FE[c.cc];let b=-1,bd=1e9;P.forEach((p,i)=>{if(p.c==c.cc){const d=(p.x-f.cx)**2+(p.y-f.cy)**2;if(d<bd){bd=d;b=i}}});c.cap=b});
+count();
+G.cs.forEach(c=>{c.start=c.pc;const mine=P.map((p,i)=>i).filter(i=>P[i].own==c.ix),n=Math.max(1,Math.min(45,Math.round(Math.sqrt(c.pop/1e6)*(y==2026?.9:1.1))));
+for(let k=0;k<n;k++)spawn(c,k&&R()<.4&&ok(c,c.tpls[1])?1:0,k?mine[0|R()*mine.length]:c.cap)});
+me=G.cs[pi];$('#menu').style.display='none';paint();sel=me.cap;selUpdate();log('Comienza la partida: '+E.n+'. Usa ▸ para avanzar el tiempo.');fit();zoomTo(P[sel],3);ui();draw()}
+function spawn(c,t,p){const s=stats(c,c.tpls[t]);G.D.push({id:++G.n,o:c.ix,p,hp:s.hp,org:s.org,st:s,tn:c.tpls[t].name,ti:t,path:[],l:0,f:0})}
+function train(c,t){const T=c.tpls[t],s=stats(c,T);if(!ok(c,T)||c.man<s.man||c.mon<s.mon)return 0;c.man-=s.man;c.mon-=s.mon;c.q.push({t,l:25});return 1}
+function count(){G.cs.forEach(c=>{c.pc=0;c.lx=0;c.ly=0;c.ln=0});
+P.forEach(p=>{const c=G.cs[p.own];c.pc++;if(p.c==c.cc){c.lx+=p.x;c.ly+=p.y;c.ln++}});
+G.cs.forEach(c=>{if(c.alive&&c.pc&&!c.ln)P.forEach(p=>{if(p.own==c.ix){c.lx+=p.x;c.ly+=p.y;c.ln++}});
+if(c.alive&&!c.pc){c.alive=0;G.D=G.D.filter(d=>d.o!=c.ix);G.cs.forEach(o=>o.war.delete(c.ix));c.war.clear();log('☠ '+c.name+' ha sido eliminado');if(c==me){alert('Has sido eliminado. Fin de la partida.');setSpeed(0)}}})}
+function neighbors(c){const s=new Set;P.forEach(p=>{if(p.own==c.ix)p.nb.forEach(v=>{const o=P[v].own;if(o!=c.ix&&G.cs[o].alive)s.add(o)})});return[...s]}
+function declare(a,b){if(a.war.has(b.ix))return;a.war.add(b.ix);b.war.add(a.ix);G.w[a.ix+'_'+b.ix]=G.w[b.ix+'_'+a.ix]=G.day;log('⚔ '+a.name+' declara la guerra a '+b.name)}
+function peace(a,b){a.war.delete(b.ix);b.war.delete(a.ix);G.D.forEach(d=>{const o=P[d.p].own;if(o!=d.o&&(o==a.ix||o==b.ix)&&!G.cs[d.o].war.has(o)){const c=G.cs[d.o];d.p=P[c.cap].own==c.ix?c.cap:P.findIndex(p=>p.own==c.ix);d.path=[]}});log('🕊 Paz entre '+a.name+' y '+b.name)}
+function bfs(s,goal,can){const pr=new Map([[s,-1]]),q=[s];for(let i=0;i<q.length;i++){const u=q[i];if(i&&goal(u)){const r=[];for(let x=u;x!=s;x=pr.get(x))r.unshift(x);return r}for(const v of P[u].nb)if(!pr.has(v)&&can(v)){pr.set(v,u);q.push(v)}}return null}
+function ai(c){const g=G.day;
+if(g%4==0&&c.q.length<3){const k=c.tpls.map((t,i)=>[i,stats(c,t)]).filter(a=>ok(c,c.tpls[a[0]])).sort((a,b)=>(b[1].atk+b[1].def)/b[1].mon-(a[1].atk+a[1].def)/a[1].mon)[0];if(k)train(c,k[0])}
+if(!c.cur&&g%5==0){const a=avail(c).sort((x,y)=>x[6]-y[6]);if(a.length)c.cur=a[0][0]}
+if(g%30==c.ix%30&&R()<.2&&!c.war.size&&G.D.some(d=>d.o==c.ix)){const dv=o=>G.D.filter(d=>d.o==o).length,n=neighbors(c).filter(o=>!c.war.has(o)&&dv(o)<dv(c.ix)*.9);if(n.length)declare(c,G.cs[n[0|R()*n.length]])}
+if(c.war.size&&g%40==c.ix%40+1&&R()<.4){const e=[...c.war].filter(o=>G.cs[o]!=me)[0];if(e!=null)peace(c,G.cs[e])}
+if(g%3==0&&c.war.size)G.D.filter(d=>d.o==c.ix&&!d.path.length&&!d.f&&R()<.6).forEach(d=>{const t=bfs(d.p,v=>c.war.has(P[v].own),v=>{const o=P[v].own;return o==c.ix||c.war.has(o)});if(t){d.path=t;d.l=dd(d)}})}
+function move(){G.D.forEach(d=>{if(!d.path.length||d.f)return;if(--d.l>0)return;const n=d.path[0],o=P[n].own;if(o==d.o||G.cs[d.o].war.has(o)){d.p=n;d.path.shift();d.l=dd(d)}else d.path=[]})}
+function combat(){const by={},dm=new Map;G.D.forEach(d=>{(by[d.p]=by[d.p]||[]).push(d);d.f=0});
+for(const p in by){const Ls=by[p],ow=P[p].own;for(const a of Ls){const en=Ls.filter(b=>G.cs[a.o].war.has(b.o));if(!en.length)continue;a.f=1;const b=en[0|R()*en.length],bn=b.o==ow?1.2:1;dm.set(b,(dm.get(b)||0)+a.st.atk*(.5+R())*.25*100/(100+b.st.def*bn*.5))}}
+for(const[d,x]of dm){d.org-=x;d.hp-=x*.5}
+G.D=G.D.filter(d=>{if(d.hp<=0)return false;if(d.org<=0){const f=P[d.p].nb.filter(v=>P[v].own==d.o&&!G.D.some(e=>e.p==v&&G.cs[d.o].war.has(e.o)));if(!f.length)return false;d.p=f[0|R()*f.length];d.org=d.st.org*.3;d.path=[];d.f=0}return true})}
+function occupy(){let ch=0;const by={};G.D.forEach(d=>(by[d.p]=by[d.p]||[]).push(d));
+for(const p in by){const Ls=by[p],pr=P[p],ow=G.cs[pr.own];if(Ls.some(d=>d.o==pr.own))continue;const e=Ls.find(d=>ow.war.has(d.o));if(e){pr.own=e.o;ch=1;setOwn(+p);if(e.o==me.ix||ow==me)log(G.cs[e.o].name+' ocupa la provincia '+p+' de '+ow.name)}}return ch}
+function tick(){G.day++;G.date.setDate(G.date.getDate()+1);
+for(const c of G.cs){if(!c.alive)continue;const M=c.mod,up=G.D.filter(d=>d.o==c.ix).length;
+c.mon=Math.max(0,c.mon+c.inc*(1+M.mon)-up*.12);c.man+=c.mg*(1+M.man);c.pp+=.4*(1+M.pp);
+if(c.cur){c.prog+=(.6+Math.sqrt(c.pc)*.2)*(1+M.rp);const t=c.tl.find(x=>x[0]==c.cur);if(c.prog>=t[6]){c.res.add(c.cur);c.cur=null;c.prog=0;recalc(c);if(c==me)log('🔬 Investigación completada: '+t[1])}}
+c.q.forEach(q=>q.l--);c.q=c.q.filter(q=>{if(q.l>0)return true;const p=P[c.cap].own==c.ix?c.cap:P.findIndex(x=>x.own==c.ix);if(p>=0)spawn(c,q.t,p);if(c==me)log('✔ División entrenada: '+c.tpls[q.t].name);return false});
+if(c!=me)ai(c)}
+move();combat();const ch=occupy();G.D.forEach(d=>{if(!d.f){d.org=Math.min(d.st.org,d.org+1);d.hp=Math.min(d.st.hp,d.hp+.3)}});
+count();if(me.alive&&me.pc>P.length*.6){alert('¡VICTORIA! Dominas más del 60% del mapa.');setSpeed(0)}
+ui();draw();if(tab&&G.day%3==0)win()}
+function setSpeed(n){sp=n;clearInterval(tm);if(n&&G)tm=setInterval(tick,SPD[n]);ui()}
+function log(m){ev.push((G?G.date.toLocaleDateString('es-CL')+': ':'')+m);if(ev.length>7)ev.shift();$('#log').innerHTML=ev.join('<br>')}
+/* ---------- DIBUJO (SVG) ---------- */
+function setOwn(i){const c=G.cs[P[i].own].col;PE[i].setAttribute('fill',c);if(P[i].dt)P[i].dt.setAttribute('fill',c)}
+function paint(){P.forEach((_,i)=>setOwn(i))}
+function selUpdate(){const e=$('#selp');if(sel<0){e.setAttribute('d','');return}e.setAttribute('d',P[sel].d);e.setAttribute('clip-path',`url(#k${P[sel].c})`)}
+function labs(){document.querySelectorAll('#lab text').forEach(t=>{const f=+t.dataset.f*K;t.style.display=f>=8&&f<150?'':'none'})}
+function view(){$('#vp').setAttribute('transform',`translate(${TX} ${TY}) scale(${K})`);$('#m').style.setProperty('--is',1/K);labs()}
+function fit(){const w=innerWidth-260,h=innerHeight-34;K=Math.min(w/VW,h/VH);TX=(w-VW*K)/2;TY=34+(h-VH*K)/2;view()}
+function zoomTo(p,k){K=k;TX=(innerWidth-260)/2-p.x*K;TY=34+(innerHeight-34)/2-p.y*K;view()}
+function draw(){if(!G)return;
+$('#lab').innerHTML=G.cs.filter(c=>c.alive&&c.ln).map(c=>{const f=Math.min(60,5*Math.sqrt(c.pc)+2);return`<text x="${c.lx/c.ln}" y="${c.ly/c.ln}" font-size="${f}" data-f="${f}">${c.name.toUpperCase()}</text>`}).join('');labs();
+const by={};G.D.forEach(d=>{(by[d.p]=by[d.p]||{})[d.o]=(by[d.p][d.o]||0)+1});let u='';
+for(const p in by){const os=Object.keys(by[p]);os.forEach((o,k)=>{const x=P[p].x+(k-os.length/2)*22,y=P[p].y;u+=`<g class="u"><rect x="${x}" y="${y-6}" width="20" height="12" fill="${G.cs[o].col}" stroke="${o==me.ix?'#fff':'#000'}"/><text class="ut" x="${x+10}" y="${y+.5}">${by[p][o]}</text></g>`})}
+$('#units').innerHTML=u;
+$('#arr').innerHTML=G.D.filter(d=>d.o==me.ix&&d.path.length).map(d=>`<path class="ar" d="M${P[d.p].x} ${P[d.p].y}${d.path.map(v=>'L'+P[v].x+' '+P[v].y).join('')}"/>`).join('')}
+function resize(){$('#m').setAttribute('viewBox',`0 0 ${innerWidth} ${innerHeight}`)}
+/* ---------- INTERFAZ ---------- */
+function ui(){if(!G)return;const c=me,t=c.cur?c.tl.find(x=>x[0]==c.cur):0;
+$('#top').innerHTML=`<span style="border-left:14px solid ${c.col};padding-left:6px"><b style="color:#d8b45a">${c.name}</b></span><span>📅 ${G.date.toLocaleDateString('es-CL')}</span><span>⭐ ${c.pp|0}</span><span>💰 ${c.mon|0}</span><span>👥 ${c.man|0}</span><span>🔬 ${t?t[1]+' '+(c.prog/t[6]*100|0)+'%':'<b style="color:#e66">sin investigación</b>'}</span><span style="flex:1"></span>`+[0,1,2,3,4,5].map(n=>`<button ${n==sp?'class=on':''} onclick="setSpeed(${n})">${n||'⏸'}</button>`).join('')+`<button onclick="openWin('army')">⚔ Ejército (A)</button><button onclick="openWin('tech')">🔬 Investigación (T)</button><button onclick="openWin('war')">🌍 Diplomacia (W)</button>`;
+let h=`<h3 style="margin:0 0 6px;color:#d8b45a">${c.name}</h3>Provincias: ${c.pc} · Divisiones: ${G.D.filter(d=>d.o==c.ix).length}<br>En guerra con: ${[...c.war].map(o=>G.cs[o].name).join(', ')||'<i>nadie</i>'}<hr style="border-color:#55422b">`;
+if(sel>=0){const p=P[sel],o=G.cs[p.own];h+=`<b>${FE[p.c].es} · prov. ${sel}</b> ${G.cs.some(x=>x.cap==sel)?'★ capital':''}<br>Propietario: <span style="color:${o.col}">${o.name}</span><br>Vecinas: ${p.nb.length}`;h+=G.D.filter(d=>d.p==sel).map(d=>`<div class=dv style="border-left:6px solid ${G.cs[d.o].col}">${G.cs[d.o].name} · ${d.tn}<span class=bar><i style="width:${d.hp/d.st.hp*100}%"></i></span><span class="bar o"><i style="width:${Math.max(0,d.org/d.st.org*100)}%"></i></span></div>`).join('')}
+h+=`<hr style="border-color:#55422b"><small>Clic izq: seleccionar provincia<br>Clic der: mover tus divisiones de la provincia seleccionada (atacar si es enemiga)<br>Arrastrar: mover mapa · Rueda: zoom<br>Espacio: pausa · 1-5 velocidad</small>`;$('#side').innerHTML=h}
+const eff=t=>Object.entries(t[5]).map(([k,v])=>`+${Math.round(v*100)}% ${L[k]}`).join(', ')+(t[7]?' · Desbloquea '+UT[t[7]].n:'');
+function openWin(t){tab=tab==t?'':t;win()}
+function win(){const w=$('#win'),sT=w.scrollTop;if(!tab){w.style.display='none';return}w.style.display='block';w.innerHTML=`<button class=x onclick="tab='';win()">✕</button>`+({army:wArmy,tech:wTech,war:wWar})[tab]();w.scrollTop=sT}
+function stale(d){const s=stats(me,me.tpls[d.ti]||me.tpls[0]);return Math.abs(s.atk+s.def+s.hp+s.org-d.st.atk-d.st.def-d.st.hp-d.st.org)>.5}
+function wArmy(){const c=me;if(ti>=c.tpls.length)ti=0;const t=c.tpls[ti],s=stats(c,t);
+const rows=[['Mano de obra',s.man],['Coste',s.mon+' $'],['Ataque',s.atk.toFixed(0)],['Defensa',s.def.toFixed(0)],['Vida',s.hp.toFixed(0)],['Organización',s.org.toFixed(0)],['Velocidad',s.spd.toFixed(1)+' km/h']];
+const st=G.D.filter(d=>d.o==c.ix&&stale(d));const uc=st.reduce((a,d)=>a+stats(c,c.tpls[d.ti]||c.tpls[0]).mon*.3,0)|0;
+return`<h2 style="margin:0 0 8px;font-family:Georgia">DISEÑADOR DE DIVISIONES</h2><div class=cols><div>${c.tpls.map((x,i)=>`<button ${i==ti?'class=on':''} onclick="ti=${i};win()">${x.name}</button>`).join(' ')} <button onclick="dup()">+ Duplicar</button> <button onclick="rn()">Renombrar</button>
+<p>Haz clic en una casilla para cambiar de regimiento:</p><div class=g3>${t.sl.map((x,i)=>`<button class=sl onclick="slot(${i})">${x?UT[x].n:'＋'}</button>`).join('')}</div>
+<p>Apoyo:</p><div class=g3 style="grid-template-columns:1fr 1fr">${t.sp.map((x,i)=>`<button class=sl style="height:34px" onclick="sup(${i})">${x?SP[x].n:'＋ Apoyo'}</button>`).join('')}</div>
+<table class=st style="margin-top:10px">${rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('')}</table></div>
+<div><b>Entrenamiento</b> (25 días)<div style="margin:6px 0">${c.q.map(x=>`<div>${c.tpls[x.t]?c.tpls[x.t].name:'?'} — ${x.l} días</div>`).join('')||'<i>Cola vacía</i>'}</div>
+${c.tpls.map((x,i)=>{const z=stats(c,x);return`<button style="display:block;width:100%;margin:4px 0" ${ok(c,x)&&c.man>=z.man&&c.mon>=z.mon?'':'disabled'} onclick="tr(${i})">Entrenar «${x.name}» — 👥${z.man} 💰${z.mon}</button>`}).join('')}
+<hr><b>Mejorar divisiones</b><p>Las divisiones conservan las estadísticas con que fueron creadas. Si investigas o editas la plantilla, actualízalas (30% del coste).<br>Desactualizadas: ${st.length}</p><button ${st.length&&c.mon>=uc?'':'disabled'} onclick="upd()">Actualizar todas — 💰${uc}</button></div></div>`}
+function slot(i){const t=me.tpls[ti],o=[null,...Object.keys(UT).filter(u=>me.un.has(u))];t.sl[i]=o[(o.indexOf(t.sl[i])+1)%o.length];win()}
+function sup(i){const t=me.tpls[ti],o=[null,...Object.keys(SP)];t.sp[i]=o[(o.indexOf(t.sp[i])+1)%o.length];win()}
+function dup(){const t=JSON.parse(JSON.stringify(me.tpls[ti]));t.name+=' II';me.tpls.push(t);ti=me.tpls.length-1;win()}
+function rn(){const n=prompt('Nombre de la plantilla:',me.tpls[ti].name);if(n){me.tpls[ti].name=n;win()}}
+function tr(i){if(train(me,i)){ui();win()}}
+function upd(){const c=me;G.D.filter(d=>d.o==c.ix&&stale(d)).forEach(d=>{const T=c.tpls[d.ti]||c.tpls[0],s=stats(c,T),cost=s.mon*.3;if(c.mon>=cost){c.mon-=cost;d.hp=d.hp/d.st.hp*s.hp;d.org=d.org/d.st.org*s.org;d.st=s;d.tn=T.name}});ui();win()}
+function wTech(){const c=me,av=new Set(avail(c).map(t=>t[0]));let h='<h2 style="margin:0 0 8px;font-family:Georgia">ÁRBOL DE INVESTIGACIÓN — '+c.name+'</h2><div class=tg>';
+BR.forEach(b=>{h+=`<b style="align-self:center">${b}</b>`;for(let k=0;k<3;k++){const t=c.tl.find(x=>x[2]==b&&x[3]==k);if(!t){h+='<div></div>';continue}
+const d=c.res.has(t[0]),r=c.cur==t[0],a=av.has(t[0]);h+=`<div class="tn ${d?'d':r?'r':a?'':'l'}" ${a&&!r?`onclick="rs('${t[0]}')"`:''}><b>${t[1]}</b><br>${eff(t)||'—'}<br><small>${d?'✔ Investigada':r?'Investigando '+(c.prog/t[6]*100|0)+'%':'Coste: '+t[6]+' pts'}</small></div>`}});
+return h+'</div><p><small>Verde: completada · Amarillo: en curso · Los ★ especiales son únicos de cada país. Se investiga una tecnología a la vez.</small></p>'}
+function rs(id){if(me.cur!=id){me.cur=id;me.prog=0}ui();win()}
+function wWar(){const c=me,nb=neighbors(c);return`<h2 style="margin:0 0 8px;font-family:Georgia">DIPLOMACIA Y GUERRA</h2><p>Poder político: ${c.pp|0} (declarar guerra cuesta 25, solo a países limítrofes)</p><table class=w><tr><th>País</th><th>Prov.</th><th>Divisiones</th><th>Estado</th><th></th></tr>`+G.cs.filter(o=>o!=c&&o.alive&&(nb.includes(o.ix)||c.war.has(o.ix))).map(o=>{const w=c.war.has(o.ix);return`<tr><td style="border-left:10px solid ${o.col};padding-left:6px">${o.name}</td><td>${o.pc}</td><td>${G.D.filter(d=>d.o==o.ix).length}</td><td>${w?'⚔ En guerra':'Paz'}</td><td>${w?`<button onclick="pz(${o.ix})">Proponer paz</button>`:`<button ${nb.includes(o.ix)&&c.pp>=25?'':'disabled'} onclick="dw(${o.ix})">Declarar guerra</button>`}</td></tr>`}).join('')+'</table>'}
+function dw(i){me.pp-=25;declare(me,G.cs[i]);ui();win()}
+function pz(i){const o=G.cs[i],ok2=o.pc<o.start*.85||G.day-G.w[me.ix+'_'+i]>120;if(ok2)peace(me,o);else log('🕊 '+o.name+' rechaza la paz: aún no ha sufrido suficientes pérdidas');ui();win();paint();draw()}
+/* ---------- MENÚ Y EVENTOS ---------- */
+function menu(){$('#menu').style.display='flex';$('#menu').innerHTML=`<div class="box"><h1>IMPERIOS EN GUERRA</h1><p>Mapa mundial vectorial · ${FE.length} países · ${P.length} provincias<br><small>Elige una era:</small></p>`+Object.keys(ERAS).map(y=>`<button onclick="pickEra(${y})">${ERAS[y].n}</button>`).join('')+'</div>'}
+function pickEra(y){$('#menu').innerHTML=`<div class="box"><h2>${ERAS[y].n}</h2><input id="fl" placeholder="Buscar país…" oninput="flt(${y})"><div id="pl" class="g" style="max-height:50vh;overflow:auto"></div><button onclick="menu()">← Volver</button></div>`;flt(y)}
+function flt(y){const q=$('#fl').value.toLowerCase();$('#pl').innerHTML=polities(y).filter(c=>c.name.toLowerCase().includes(q)).slice(0,q?250:60).map(c=>`<button style="border-left:12px solid ${c.col}" onclick="start(${y},${c.ix})">${c.name}</button>`).join('')}
+const mv=$('#m');let dr=null,mvd=0;
+mv.onmousedown=e=>{dr={x:e.clientX,y:e.clientY,tx:TX,ty:TY};mvd=0};
+addEventListener('mousemove',e=>{if(!dr)return;const dx=e.clientX-dr.x,dy=e.clientY-dr.y;if(Math.abs(dx)+Math.abs(dy)>4)mvd=1;if(mvd){TX=dr.tx+dx;TY=dr.ty+dy;view()}});
+addEventListener('mouseup',e=>{if(dr&&!mvd&&G&&e.button==0){const t=e.target.closest&&e.target.closest('[data-i]');if(t){sel=+t.dataset.i;selUpdate();ui()}}dr=null});
+mv.oncontextmenu=e=>{e.preventDefault();if(!G)return;const t=e.target.closest('[data-i]');if(t)order(+t.dataset.i)};
+mv.onwheel=e=>{e.preventDefault();const k=Math.max(.6,Math.min(45,K*(e.deltaY<0?1.2:1/1.2))),f=k/K;TX=e.clientX-(e.clientX-TX)*f;TY=e.clientY-(e.clientY-TY)*f;K=k;view()};
+function order(t){if(sel<0||t<0||t==sel)return;const Ls=G.D.filter(d=>d.o==me.ix&&d.p==sel);if(!Ls.length)return;const can=v=>{const o=P[v].own;return o==me.ix||me.war.has(o)};
+if(!can(t)){log('No puedes entrar: no estás en guerra con ese país');return}const pth=bfs(sel,v=>v==t,can);if(!pth){log('No hay ruta (¿mar de por medio?)');return}Ls.forEach(d=>{d.path=[...pth];d.l=dd(d)});draw()}
+addEventListener('keydown',e=>{if(!G)return;const k=e.key.toLowerCase();if(k==' '){e.preventDefault();setSpeed(sp?0:2)}else if('12345'.includes(k)&&k)setSpeed(+k);else if(k=='a')openWin('army');else if(k=='t')openWin('tech');else if(k=='w')openWin('war');else if(k=='escape'){tab='';win()}});
+addEventListener('resize',()=>{resize();if(!G)return;view()});
+resize();loadWorld();
+</script></body></html>
